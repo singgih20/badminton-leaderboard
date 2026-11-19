@@ -1,10 +1,19 @@
-// Google Apps Script: set Script Properties APP_SECRET and SPREADSHEET_ID.
-// Deploy as Web App: Execute as Me, access Anyone. Requests are authenticated by secret.
+/** Script Properties: SPREADSHEET_ID, APP_SECRET.
+ * Deploy as Web App: Execute as Me, access Anyone.
+ */
+const ADMIN_PASSWORD = 'Admin123!';
+
 function doPost(e) {
   try {
-    const req = JSON.parse(e.postData.contents || '{}');
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const props = PropertiesService.getScriptProperties();
-    if (!req.secret || req.secret !== props.getProperty('APP_SECRET')) throw Error('Unauthorized');
+    const secret = props.getProperty('APP_SECRET');
+    if (!secret || !req.secret || req.secret !== secret) throw Error('Unauthorized');
+    const action = String(req.action || '');
+    if (action === 'login') {
+      return respond({ok:true, authenticated:typeof req.password==='string' && req.password.length>0 && req.password===ADMIN_PASSWORD});
+    }
+    if (action !== 'read' && action !== 'write') throw Error('Action tidak dikenal');
     const ss = SpreadsheetApp.openById(props.getProperty('SPREADSHEET_ID'));
     let sheet = ss.getSheetByName('State');
     if (!sheet) sheet = ss.insertSheet('State');
@@ -18,15 +27,13 @@ function doPost(e) {
         const parts = sheet.getRange(2,1,count,1).getValues().map(row=>String(row[0]||''));
         data = JSON.parse(parts.join(''));
       }
-      if (req.action === 'read') return respond({ok:true,data:data,revision:revision});
-      if (req.action !== 'write') throw Error('Action tidak dikenal');
+      if (action === 'read') return respond({ok:true,data,revision});
       if (String(req.expectedRevision) !== revision) throw Error('CONFLICT: data telah berubah; refresh sebelum menyimpan');
       if (!req.data || !Array.isArray(req.data.projects)) throw Error('Data tidak valid');
       const serialized = JSON.stringify(req.data);
       if (serialized.length > 3500000) throw Error('Data terlalu besar');
       const chunks = serialized.match(/[\s\S]{1,30000}/g) || [''];
       const nextRevision = Utilities.getUuid();
-      // write payload first, metadata last
       sheet.getRange(2,1,chunks.length,1).setValues(chunks.map(x=>[x]));
       sheet.getRange('A1:C1').setValues([['BADMIN_STATE',chunks.length,nextRevision]]);
       SpreadsheetApp.flush();

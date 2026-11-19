@@ -2,7 +2,15 @@
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Badmin Stat</title>
 <style>
 :root{--g:#16794b;--bg:#f4f7f5;--line:#e5ebe7;--muted:#718078}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#17231d;font:15px system-ui}main{max-width:850px;margin:28px auto;padding:0 16px 40px}header{display:flex;gap:12px;align-items:center;margin-bottom:20px}.logo{background:var(--g);color:white;border-radius:14px;padding:10px;font-size:25px}h1{font-size:23px;margin:0}header p,.muted,.note{color:var(--muted);font-size:12px}header p{margin:2px 0}.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}button{border:0;border-radius:10px;padding:10px 14px;font-weight:650;cursor:pointer}.tab{background:#e8efea;color:#45554b}.tab.active,.primary{background:var(--g);color:white}.panel,.stat{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}.panel h2{font-size:16px;margin:0 0 13px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.stat{margin:0;padding:13px}.num{font-size:25px;font-weight:750}.green{color:var(--g)}.red{color:#c44747}.muted{font-size:12px}input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit}label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.row{display:flex;gap:9px;align-items:end}.field{flex:1;min-width:0}.secondary{background:#eef2ef}.danger{background:#faeaea;color:#b33}.full{width:100%;margin-top:12px}.teamgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:1px solid var(--line);border-radius:12px;padding:12px}.team h3{font-size:14px;margin:0 0 9px}.team select{margin-bottom:8px}.team select:last-child{margin:0}.entry{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.entry:last-child{border:0}.grow{flex:1;min-width:0}.name{font-weight:650;overflow-wrap:anywhere}.sub{font-size:12px;color:var(--muted)}.avatar{width:36px;height:36px;border-radius:11px;background:#e5f4eb;color:var(--g);display:grid;place-items:center;font-weight:750}.empty{text-align:center;color:var(--muted);padding:22px}.hidden{display:none!important}.result{font-size:12px;color:var(--g);font-weight:700;white-space:nowrap}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 7px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--muted)}.note{margin-top:8px}@media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}.teamgrid{grid-template-columns:1fr}.row{align-items:stretch}}
-.insightgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.insight{border:1px solid var(--line);border-radius:12px;padding:13px}.insight .name{margin:6px 0}.insight .sub{line-height:1.6}.scoregrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}@media(max-width:560px){.insightgrid{grid-template-columns:1fr}.scoregrid{grid-template-columns:1fr}} .h2h-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.h2h-stat{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}.h2h-stat .num{font-size:24px}.h2h-history .entry{align-items:flex-start}.h2h-history .scoreline{font-weight:750;font-size:16px}@media(max-width:560px){.h2h-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}</style></head><body><main>
+.insightgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.insight{border:1px solid var(--line);border-radius:12px;padding:13px}.insight .name{margin:6px 0}.insight .sub{line-height:1.6}.scoregrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}@media(max-width:560px){.insightgrid{grid-template-columns:1fr}.scoregrid{grid-template-columns:1fr}} .h2h-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.h2h-stat{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}.h2h-stat .num{font-size:24px}.h2h-history .entry{align-items:flex-start}.h2h-history .scoreline{font-weight:750;font-size:16px}@media(max-width:560px){.h2h-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}</style><style>
+body:not(.badmin-authorized) #adminApp{display:none}
+body.badmin-authorized #loginGate{display:none}
+#loginGate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:390px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 12px 40px #173b2310}
+.login-card h2{margin:12px 0 6px;font-size:23px}.login-card p{color:var(--muted);font-size:13px;line-height:1.5}
+.login-card input{margin:8px 0 12px}.login-card button{width:100%}
+#loginError{color:#b33;min-height:18px;font-size:12px;margin-top:10px}
+</style></head><body><div id="loginGate" class="hidden"><form class="login-card" id="inlineLoginForm"><div class="logo" style="display:inline-block">🏸</div><h2>Badmin Stat</h2><p>Masukkan password admin untuk mengelola PB dan pertandingan.</p><label for="inlinePassword">Password Admin</label><input id="inlinePassword" type="password" autocomplete="current-password" required placeholder="Password admin"><button class="primary" id="inlineLoginButton" type="submit">Masuk ke Dashboard</button><div id="loginError" role="alert"></div></form></div><div id="adminApp"><main>
 <header><div class="logo">🏸</div><div><h1>Badmin Stat</h1><p>Kelola member dan catat hasil pertandingan ganda.</p></div><button id="logoutButton" class="secondary" style="margin-left:auto" type="button">Logout</button></header>
 <div class="panel" id="projectPanel">
  <div class="row" style="align-items:end;flex-wrap:wrap">
@@ -31,8 +39,8 @@
 <div class="field"><label>Player 4 · Partner Player 3</label><select id="h2hP4" disabled><option value="">Pilih Player 3 dahulu</option></select></div>
 </div><div id="h2hResult" style="margin-top:16px"><div class="empty">Pilih pasangan dan lawan untuk melihat Head to Head.</div></div></div>
 </section>
-</main><script>
-const KEY='badmin-cloud-cache';
+</main></div><script>
+const KEY='badmin-cloud-cache', AUTH_KEY='badmin_admin_password';
 let db,revision='0',saveChain=Promise.resolve(),viewerMode=location.pathname.startsWith('/p/'),viewerSlug=decodeURIComponent(location.pathname.split('/')[2]||'');
 const $=id=>document.getElementById(id);
 function normalizeDB(raw){
@@ -44,7 +52,15 @@ function normalizeDB(raw){
 function slugify(s){return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70)||'pb'}
 function activeProject(){return db.projects.find(p=>p.id===db.activeProjectId)}
 function snapshot(){return {projects:db.projects,activeProjectId:db.activeProjectId}}
-async function api(path,options){const r=await fetch('/api/'+path,{credentials:'same-origin',cache:'no-store',...options,headers:{'content-type':'application/json',...(options?.headers||{})}});const v=await r.json();if(!r.ok||v.ok===false)throw Error(v.error||'Request gagal');return v}
+async function api(path,options={}){
+ const isAdminRequest=path==='state';
+ const password=localStorage.getItem(AUTH_KEY)||'';
+ const headers={'content-type':'application/json',...(options.headers||{})};
+ if(isAdminRequest && !viewerMode)headers['X-Admin-Password']=password;
+ const r=await fetch('/api/'+path,{credentials:'same-origin',cache:'no-store',...options,headers});
+ const raw=await r.text();let v;try{v=JSON.parse(raw)}catch{throw Error('API tidak mengembalikan JSON (HTTP '+r.status+')')}
+ if(!r.ok||v.ok===false)throw Error(v.error||'Request gagal (HTTP '+r.status+')');return v;
+}
 function showStatus(s){const el=$('cloudStatus');if(el)el.textContent=s}
 function save(){if(viewerMode)return;render();const data=JSON.parse(JSON.stringify(snapshot()));showStatus('Menyimpan…');saveChain=saveChain.then(async()=>{const out=await api('state',{method:'POST',body:JSON.stringify({data,revision})});revision=out.revision;localStorage.setItem(KEY,JSON.stringify(data));showStatus('✓ Tersimpan di Google Sheets')}).catch(e=>{showStatus('⚠ Gagal menyimpan: '+e.message);alert('Gagal menyimpan data ke cloud: '+e.message+'\nJangan tutup halaman. Refresh hanya setelah data berhasil disimpan.');throw e});saveChain=saveChain.catch(()=>{});}
 function refreshProjectSelector(){const s=$('projectSelect');if(!s)return;const old=db.activeProjectId;s.replaceChildren();db.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;s.append(o)});s.value=old;const link=$('projectPublicLink');if(link)link.value=location.origin+'/p/'+activeProject().slug}
@@ -55,7 +71,7 @@ $('removeProjectLogo').onclick=()=>{activeProject().logo='';save()};
 function createProject(name){const clean=String(name||'').trim();if(!clean)return;if(db.projects.some(p=>p.name.toLowerCase()===clean.toLowerCase()))return alert('Nama PB sudah ada');let slug=slugify(clean),base=slug,i=2;while(db.projects.some(p=>p.slug===slug))slug=base+'-'+i++;const p={id:'p'+crypto.randomUUID(),name:clean,slug,logo:'',members:[],matches:[]};db.projects.push(p);db.activeProjectId=p.id;save()}
 $('projectSelect').onchange=()=>{db.activeProjectId=$('projectSelect').value;render()};
 $('addProject').onclick=()=>{const name=prompt('Nama PB baru:');if(name)createProject(name)};
-async function loadCloud(){try{if(viewerMode){const out=await api('public?slug='+encodeURIComponent(viewerSlug));db=normalizeDB({projects:[out.project],activeProjectId:out.project.id});revision=out.revision}else{const out=await api('state');db=normalizeDB(out.data);revision=out.revision}render();showStatus('✓ Data terbaru');}catch(e){showStatus('⚠ '+e.message);if(!viewerMode&&e.message.includes('Sesi admin')){location.href='/login.html';return}if(!db){$('dashboard').innerHTML='<div class="panel">Gagal memuat data: '+String(e.message).replace(/[<>]/g,'')+'</div>'}}}
+async function loadCloud(){try{if(viewerMode){const out=await api('public?slug='+encodeURIComponent(viewerSlug));db=normalizeDB({projects:[out.project],activeProjectId:out.project.id});revision=out.revision}else{const out=await api('state');db=normalizeDB(out.data);revision=out.revision}render();showStatus('✓ Data terbaru');}catch(e){showStatus('⚠ '+e.message);if(!viewerMode&&/password|unauthorized|login|akses admin/i.test(e.message)){logoutAdmin(false);return}if(!db){$('dashboard').innerHTML='<div class="panel">Gagal memuat data: '+String(e.message).replace(/[<>]/g,'')+'</div>'}}}
 function stats(id){let ms=db.matches.filter(m=>m.a.includes(id)||m.b.includes(id));let w=ms.filter(m=>(m.winner==='A'?m.a:m.b).includes(id)).length;return{played:ms.length,wins:w,losses:ms.length-w,rate:ms.length?Math.round(w/ms.length*100):0}}
 function mname(id){return db.members.find(x=>x.id===id)?.name||'Member'}
 function pairKey(ids){return [...ids].sort().join('|')}
@@ -116,7 +132,23 @@ if(viewerMode){
  document.querySelector('header p').textContent='Statistik badminton · Viewer publik';
  const oldDraw=drawMatches;drawMatches=function(id){oldDraw(id);document.querySelectorAll('#'+id+' button').forEach(b=>b.remove())};
 }else{
- $('logoutButton').onclick=async()=>{await api('logout',{method:'POST'});location.href='/login.html'};
+ $('logoutButton').onclick=()=>logoutAdmin(true);
 }
-loadCloud();if(viewerMode)setInterval(loadCloud,30000);
+function showGate(){document.body.classList.remove('badmin-authorized');$('loginGate').classList.remove('hidden');$('inlinePassword').focus()}
+function showDashboard(){document.body.classList.add('badmin-authorized');$('loginGate').classList.add('hidden')}
+function logoutAdmin(reload){localStorage.removeItem(AUTH_KEY);localStorage.removeItem(KEY);showGate();if(reload)location.reload()}
+$('inlineLoginForm').addEventListener('submit',async e=>{
+ e.preventDefault();const password=$('inlinePassword').value;
+ const btn=$('inlineLoginButton');btn.disabled=true;btn.textContent='Memeriksa…';$('loginError').textContent='';
+ try{
+  const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password}),cache:'no-store'});
+  const raw=await r.text();let result;try{result=JSON.parse(raw)}catch{throw Error('Endpoint /api/login belum siap (HTTP '+r.status+')')}
+  if(!r.ok||!result.authenticated)throw Error(result.error||'Password salah');
+  localStorage.setItem(AUTH_KEY,password);$('inlinePassword').value='';showDashboard();await loadCloud();
+ }catch(err){$('loginError').textContent=err.message}
+ finally{btn.disabled=false;btn.textContent='Masuk ke Dashboard'}
+});
+if(viewerMode){$('loginGate').classList.add('hidden');showDashboard();loadCloud();setInterval(loadCloud,30000)}
+else if(localStorage.getItem(AUTH_KEY)){showDashboard();loadCloud()}
+else showGate();
 </script></body></html>
