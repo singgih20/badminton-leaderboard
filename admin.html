@@ -41,7 +41,7 @@ body.badmin-authorized #loginGate{display:none}
 </section>
 </main></div><script>
 const KEY='badmin-cloud-cache', AUTH_KEY='badmin_admin_password';
-let db,revision='0',saveChain=Promise.resolve(),viewerMode=location.pathname.startsWith('/p/'),viewerSlug=decodeURIComponent(location.pathname.split('/')[2]||'');
+let db,revision='0',viewerMode=location.pathname.startsWith('/p/'),viewerSlug=decodeURIComponent(location.pathname.split('/')[2]||'');
 const $=id=>document.getElementById(id);
 function normalizeDB(raw){
  let projects=Array.isArray(raw?.projects)?raw.projects.map((p,i)=>({id:String(p.id||'p'+i),name:String(p.name||'PB'),slug:String(p.slug||slugify(p.name||'pb')),logo:p.logo||'',members:Array.isArray(p.members)?p.members:[],matches:Array.isArray(p.matches)?p.matches:[]})):[];
@@ -62,15 +62,55 @@ async function api(path,options={}){
  if(!r.ok||v.ok===false)throw Error(v.error||'Request gagal (HTTP '+r.status+')');return v;
 }
 function showStatus(s){const el=$('cloudStatus');if(el)el.textContent=s}
-function save(){if(viewerMode)return;render();const data=JSON.parse(JSON.stringify(snapshot()));showStatus('Menyimpan…');saveChain=saveChain.then(async()=>{const out=await api('state',{method:'POST',body:JSON.stringify({data,revision})});revision=out.revision;localStorage.setItem(KEY,JSON.stringify(data));showStatus('✓ Tersimpan di Google Sheets')}).catch(e=>{showStatus('⚠ Gagal menyimpan: '+e.message);alert('Gagal menyimpan data ke cloud: '+e.message+'\nJangan tutup halaman. Refresh hanya setelah data berhasil disimpan.');throw e});saveChain=saveChain.catch(()=>{});}
+// Simpan ke server terlebih dahulu; UI dan db hanya berubah setelah server sukses.
+let saving=false;
+async function commitChange(mutator, button){
+ if(viewerMode||saving)return false;
+ saving=true;
+ const previousText=button?.textContent;
+ if(button){button.disabled=true;button.textContent='Menyimpan…'}
+ showStatus('Menyimpan ke Google Sheets…');
+ try{
+  const next=JSON.parse(JSON.stringify(snapshot()));
+  mutator(next);
+  const out=await api('state',{method:'POST',body:JSON.stringify({data:next,revision})});
+  if(!out.revision)throw Error('Server tidak mengembalikan revision');
+  revision=out.revision;
+  db=normalizeDB(next);
+  localStorage.setItem(KEY,JSON.stringify(next));
+  render();
+  showStatus('✓ Tersimpan di Google Sheets');
+  return true;
+ }catch(err){
+  showStatus('⚠ Gagal menyimpan: '+err.message);
+  alert('Gagal menyimpan: '+err.message+'\nData di tampilan tidak diubah.');
+  return false;
+ }finally{
+  saving=false;
+  if(button){button.disabled=false;button.textContent=previousText}
+ }
+}
+
 function refreshProjectSelector(){const s=$('projectSelect');if(!s)return;const old=db.activeProjectId;s.replaceChildren();db.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;s.append(o)});s.value=old;const link=$('projectPublicLink');if(link)link.value=location.origin+'/p/'+activeProject().slug}
 function imageToDataUrl(file,maxSize=420){return new Promise((resolve,reject)=>{if(!file){resolve('');return}if(!file.type.startsWith('image/'))return reject(Error('Pilih gambar'));const reader=new FileReader();reader.onerror=()=>reject(Error('Gagal membaca gambar'));reader.onload=()=>{const img=new Image();img.onerror=()=>reject(Error('Gambar tidak valid'));img.onload=()=>{const scale=Math.min(1,maxSize/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',0.65))};img.src=reader.result};reader.readAsDataURL(file)})}
 function renderProjectBrand(){const p=activeProject();$('dashboardProjectName').textContent=p?.name||'PB';const img=$('dashboardProjectLogo');if(p?.logo){img.src=p.logo;img.style.display='block'}else{img.removeAttribute('src');img.style.display='none'}const input=$('projectLogo');if(input)input.value=''}
-$('projectLogo').onchange=async()=>{const f=$('projectLogo').files[0];if(!f)return;try{activeProject().logo=await imageToDataUrl(f,200);save()}catch(e){alert(e.message)}};
-$('removeProjectLogo').onclick=()=>{activeProject().logo='';save()};
-function createProject(name){const clean=String(name||'').trim();if(!clean)return;if(db.projects.some(p=>p.name.toLowerCase()===clean.toLowerCase()))return alert('Nama PB sudah ada');let slug=slugify(clean),base=slug,i=2;while(db.projects.some(p=>p.slug===slug))slug=base+'-'+i++;const p={id:'p'+crypto.randomUUID(),name:clean,slug,logo:'',members:[],matches:[]};db.projects.push(p);db.activeProjectId=p.id;save()}
+$('projectLogo').onchange=async()=>{
+ const input=$('projectLogo'),f=input.files[0];if(!f)return;
+ try{const logo=await imageToDataUrl(f,200),id=db.activeProjectId;
+  if(await commitChange(next=>{next.projects.find(p=>p.id===id).logo=logo}))input.value='';
+ }catch(e){alert(e.message)}
+};
+$('removeProjectLogo').onclick=()=>{const id=db.activeProjectId;commitChange(next=>{next.projects.find(p=>p.id===id).logo=''},$('removeProjectLogo'))};
+async function createProject(name){
+ const clean=String(name||'').trim();if(!clean)return;
+ if(db.projects.some(p=>p.name.toLowerCase()===clean.toLowerCase()))return alert('Nama PB sudah ada');
+ let slug=slugify(clean),base=slug,i=2;while(db.projects.some(p=>p.slug===slug))slug=base+'-'+i++;
+ const p={id:'p'+crypto.randomUUID(),name:clean,slug,logo:'',members:[],matches:[]};
+ await commitChange(next=>{next.projects.push(p);next.activeProjectId=p.id},$('addProject'));
+}
 $('projectSelect').onchange=()=>{db.activeProjectId=$('projectSelect').value;render()};
 $('addProject').onclick=()=>{const name=prompt('Nama PB baru:');if(name)createProject(name)};
+
 async function loadCloud(){try{if(viewerMode){const out=await api('public?slug='+encodeURIComponent(viewerSlug));db=normalizeDB({projects:[out.project],activeProjectId:out.project.id});revision=out.revision}else{const out=await api('state');db=normalizeDB(out.data);revision=out.revision}render();showStatus('✓ Data terbaru');}catch(e){showStatus('⚠ '+e.message);if(!viewerMode&&/password|unauthorized|login|akses admin/i.test(e.message)){logoutAdmin(false);return}if(!db){$('dashboard').innerHTML='<div class="panel">Gagal memuat data: '+String(e.message).replace(/[<>]/g,'')+'</div>'}}}
 function stats(id){let ms=db.matches.filter(m=>m.a.includes(id)||m.b.includes(id));let w=ms.filter(m=>(m.winner==='A'?m.a:m.b).includes(id)).length;return{played:ms.length,wins:w,losses:ms.length-w,rate:ms.length?Math.round(w/ms.length*100):0}}
 function mname(id){return db.members.find(x=>x.id===id)?.name||'Member'}
@@ -81,7 +121,7 @@ return {pairs:[...pairs.values()],matchups:[...matchups.values()]}}
 function renderInsights(){const min=Number($('minGames').value),{pairs,matchups}=getRankings(),root=$('insights');root.innerHTML='';for(const [title,data,best] of [['🏆 Best Pair',pairs,true],['📉 Worst Pair',pairs,false]]){const eligible=data.filter(x=>x.played>=min).sort((a,b)=>best?(b.rate-a.rate||b.wins-a.wins||b.played-a.played||a.label.localeCompare(b.label)):(a.rate-b.rate||b.losses-a.losses||b.played-a.played||a.label.localeCompare(b.label)));let el=document.createElement('div');el.className='insight';let h=document.createElement('div');h.className='muted';h.textContent=title;el.append(h);if(!eligible.length){let e=document.createElement('div');e.className='sub';e.style.marginTop='8px';e.textContent='Belum ada data dengan minimal '+min+' pertandingan.';el.append(e)}else{const r=eligible[0];let n=document.createElement('div');n.className='name';n.textContent=r.label;let st=document.createElement('div');st.className='sub';st.textContent=`${r.played} match · ${r.wins} menang · ${r.losses} kalah`;let rate=document.createElement('div');rate.className='num '+(best?'green':'red');rate.textContent=Math.round(r.rate)+'%';el.append(n,rate,st)}root.append(el)}}
 function matchLabel(m){return m.a.map(mname).join(' & ')+' vs '+m.b.map(mname).join(' & ')}
 function drawMatches(id){let root=$(id);root.innerHTML='';if(!db.matches.length){root.innerHTML='<div class="empty">Belum ada pertandingan.</div>';return}
-[...db.matches].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).forEach(m=>{let el=document.createElement('div');el.className='entry';let info=document.createElement('div');info.className='grow';let n=document.createElement('div');n.className='name';n.textContent=matchLabel(m);let s=document.createElement('div');s.className='sub';s.textContent=new Date(m.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})+(m.score?' · '+m.score:'')+(m.targetScore?' · Target '+m.targetScore:'')+(m.venue?' · 📍 '+m.venue:'');info.append(n,s);let w=document.createElement('span');w.className='result';w.textContent='Tim '+m.winner+' menang';let d=document.createElement('button');d.className='secondary';d.textContent='Hapus';d.onclick=()=>{if(confirm('Hapus pertandingan ini?')){db.matches=db.matches.filter(x=>x.id!==m.id);save()}};el.append(info,w,d);root.append(el)})}
+[...db.matches].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).forEach(m=>{let el=document.createElement('div');el.className='entry';let info=document.createElement('div');info.className='grow';let n=document.createElement('div');n.className='name';n.textContent=matchLabel(m);let s=document.createElement('div');s.className='sub';s.textContent=new Date(m.date+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})+(m.score?' · '+m.score:'')+(m.targetScore?' · Target '+m.targetScore:'')+(m.venue?' · 📍 '+m.venue:'');info.append(n,s);let w=document.createElement('span');w.className='result';w.textContent='Tim '+m.winner+' menang';let d=document.createElement('button');d.className='secondary';d.textContent='Hapus';d.onclick=()=>{if(confirm('Hapus pertandingan ini?')){commitChange(next=>{const p=next.projects.find(p=>p.id===db.activeProjectId);p.matches=p.matches.filter(x=>x.id!==m.id)},d)}};el.append(info,w,d);root.append(el)})}
 // Week 1: 16–22 November 2026 (Senin–Minggu), zona tanggal lokal.
 const WEEK_ZERO=new Date(2026,10,16),DAY_MS=86400000;
 function dateOnly(str){if(!/^\d{4}-\d{2}-\d{2}$/.test(str||''))return null;const [y,m,d]=str.split('-').map(Number);const dt=new Date(y,m-1,d);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d?dt:null}
@@ -116,14 +156,36 @@ $('h2hP1').onchange=()=>onH2HPlayerChange(1);$('h2hP2').onchange=()=>onH2HPlayer
 
 function render(){refreshProjectSelector();renderProjectBrand();let total=db.matches.length;$('total').textContent=total;$('memberCount').textContent=db.members.length;$('wins').textContent=total;$('losses').textContent=total;
 let list=$('memberList');list.innerHTML='';if(!db.members.length)list.innerHTML='<div class="empty">Belum ada member. Tambahkan pemain terlebih dahulu.</div>';
-db.members.forEach(m=>{let st=stats(m.id),el=document.createElement('div');el.className='entry';let av=m.photo?document.createElement('img'):document.createElement('div');av.className='avatar';if(m.photo){av.src=m.photo;av.alt=m.name;av.style.objectFit='cover'}else av.textContent=m.name[0].toUpperCase();let info=document.createElement('div');info.className='grow';let nm=document.createElement('div');nm.className='name';nm.textContent=m.name;let sub=document.createElement('div');sub.className='sub';sub.textContent=`${st.played} match · ${st.wins} menang · ${st.losses} kalah · Win rate ${st.rate}%`;info.append(nm,sub);let del=document.createElement('button');del.className='danger';del.textContent='Hapus';del.onclick=()=>{if(db.matches.some(x=>x.a.includes(m.id)||x.b.includes(m.id))){alert('Member sudah ada di riwayat pertandingan. Hapus pertandingan terkait terlebih dahulu.')}else if(confirm('Hapus '+m.name+'?')){db.members=db.members.filter(x=>x.id!==m.id);save()}};el.append(av,info,del);list.append(el)});
+db.members.forEach(m=>{let st=stats(m.id),el=document.createElement('div');el.className='entry';let av=m.photo?document.createElement('img'):document.createElement('div');av.className='avatar';if(m.photo){av.src=m.photo;av.alt=m.name;av.style.objectFit='cover'}else av.textContent=m.name[0].toUpperCase();let info=document.createElement('div');info.className='grow';let nm=document.createElement('div');nm.className='name';nm.textContent=m.name;let sub=document.createElement('div');sub.className='sub';sub.textContent=`${st.played} match · ${st.wins} menang · ${st.losses} kalah · Win rate ${st.rate}%`;info.append(nm,sub);let del=document.createElement('button');del.className='danger';del.textContent='Hapus';del.onclick=()=>{if(db.matches.some(x=>x.a.includes(m.id)||x.b.includes(m.id))){alert('Member sudah ada di riwayat pertandingan. Hapus pertandingan terkait terlebih dahulu.')}else if(confirm('Hapus '+m.name+'?')){commitChange(next=>{const p=next.projects.find(p=>p.id===db.activeProjectId);p.members=p.members.filter(x=>x.id!==m.id)},del)}};el.append(av,info,del);list.append(el)});
 ['a1','a2','b1','b2'].forEach(id=>{let sel=$(id),old=sel.value;sel.innerHTML='<option value="">Pilih member</option>';db.members.forEach(m=>{let o=document.createElement('option');o.value=m.id;o.textContent=m.name;sel.append(o)});if(db.members.some(m=>m.id===old))sel.value=old;sel.disabled=db.members.length<4});
 renderLeaderboard();
 renderInsights();drawMatches('recent');drawMatches('allMatches');renderHeadToHead()}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['dashboard','members','matches','headtohead'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab))});
-$('memberForm').onsubmit=async e=>{e.preventDefault();let name=$('memberName').value.trim();if(!name)return;if(db.members.some(m=>m.name.toLowerCase()===name.toLowerCase())){alert('Nama member sudah terdaftar.');return}try{const photo=await imageToDataUrl($('memberPhoto').files[0],320);db.members.push({id:'m'+Date.now()+Math.random().toString(16).slice(2),name,photo});$('memberName').value='';$('memberPhoto').value='';save()}catch(err){alert(err.message)}};
+$('memberForm').onsubmit=async e=>{
+ e.preventDefault();const name=$('memberName').value.trim();if(!name||saving)return;
+ if(db.members.some(m=>m.name.toLowerCase()===name.toLowerCase()))return alert('Nama member sudah terdaftar.');
+ const button=$('memberForm').querySelector('button[type="submit"],button:not([type])');
+ try{
+  const photo=await imageToDataUrl($('memberPhoto').files[0],320);
+  const member={id:'m'+Date.now()+Math.random().toString(16).slice(2),name,photo};
+  const projectId=db.activeProjectId;
+  const ok=await commitChange(next=>{next.projects.find(p=>p.id===projectId).members.push(member)},button);
+  if(ok){$('memberName').value='';$('memberPhoto').value=''}
+ }catch(err){alert(err.message)}
+};
 $('leaderboardWeek').onchange=renderLeaderboard;$('minGames').onchange=renderInsights;$('targetScore').onchange=()=>{$('scoreA').max=$('scoreB').max=$('targetScore').value;$('scoreHint').textContent='Pemenang otomatis dari skor. Salah satu tim harus mencapai '+$('targetScore').value+' poin.'};$('targetScore').onchange();
-$('matchForm').onsubmit=e=>{e.preventDefault();if(db.members.length<4){alert('Tambahkan minimal 4 member terlebih dahulu.');return}let a=[$('a1').value,$('a2').value],b=[$('b1').value,$('b2').value],ids=[...a,...b];if(ids.some(x=>!x)||new Set(ids).size!==4){alert('Pilih 4 member yang berbeda.');return}const target=Number($('targetScore').value),sa=Number($('scoreA').value),sb=Number($('scoreB').value);if(!$('scoreA').value||!$('scoreB').value||![sa,sb].every(Number.isInteger)||sa<0||sb<0||Math.max(sa,sb)!==target||Math.min(sa,sb)>=target){alert('Skor harus bilangan bulat, satu tim tepat mencapai '+target+' dan tim lainnya lebih rendah.');return}db.matches.push({id:Date.now()+Math.random(),a,b,winner:sa>sb?'A':'B',date:$('matchDate').value,venue:$('matchVenue').value.trim(),score:sa+'-'+sb,targetScore:target,scoreA:sa,scoreB:sb});$('scoreA').value='';$('scoreB').value='';$('matchVenue').value='';save()};
+$('matchForm').onsubmit=async e=>{
+ e.preventDefault();if(saving)return;
+ if(db.members.length<4)return alert('Tambahkan minimal 4 member terlebih dahulu.');
+ const a=[$('a1').value,$('a2').value],b=[$('b1').value,$('b2').value],ids=[...a,...b];
+ if(ids.some(x=>!x)||new Set(ids).size!==4)return alert('Pilih 4 member yang berbeda.');
+ const target=Number($('targetScore').value),sa=Number($('scoreA').value),sb=Number($('scoreB').value);
+ if(!$('scoreA').value||!$('scoreB').value||![sa,sb].every(Number.isInteger)||sa<0||sb<0||Math.max(sa,sb)!==target||Math.min(sa,sb)>=target)return alert('Skor harus bilangan bulat, satu tim tepat mencapai '+target+' dan tim lainnya lebih rendah.');
+ const match={id:Date.now()+Math.random(),a,b,winner:sa>sb?'A':'B',date:$('matchDate').value,venue:$('matchVenue').value.trim(),score:sa+'-'+sb,targetScore:target,scoreA:sa,scoreB:sb};
+ const projectId=db.activeProjectId,button=$('matchForm').querySelector('button[type="submit"],button:not([type])');
+ const ok=await commitChange(next=>{next.projects.find(p=>p.id===projectId).matches.push(match)},button);
+ if(ok){$('scoreA').value='';$('scoreB').value='';$('matchVenue').value=''}
+};
 db=normalizeDB(null);
 if(viewerMode){
  $('projectPanel').classList.add('hidden');$('logoutButton').classList.add('hidden');
